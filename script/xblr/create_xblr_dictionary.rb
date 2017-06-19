@@ -1,8 +1,36 @@
-# rails runner script/xblr/script.rb
+# ------------------------------------------------------------------------------
+# Help
+# ------------------------------------------------------------------------------
+
+# Generate XBLR yaml dictionary to match XBLR budget line names with their elasticsearch equivalents
+#
+# rails runner script/xblr/create_xblr_dictionary.rb <xblr_file>
+# rails runner script/xblr/create_xblr_dictionary.rb script/xblr/data/data/file.xblr
+
+if ARGV.empty? || ARGV.include?('-h') || ARGV.include?('--help')
+  puts "\n------------ HELP ------------"
+  puts "    Usage:"
+  puts "      Options:"
+  puts "        -h or --help       # show this help/usage"
+  puts "      Format:"
+  puts "        rails runner script/xblr/create_xblr_dictionary.rb <xblr_file>"
+  puts "      Example:"
+  puts "        rails runner script/xblr/create_xblr_dictionary.rb script/data/xblr/file.xblr"
+  puts "------------------------------\n"
+  exit
+end
+
+xblr_file_path = ARGV[0]
 
 # ------------------------------------------------------------------------------
-# Utility functions
+# Utility constants and functions
 # ------------------------------------------------------------------------------
+
+DEBUG_MODE = false
+
+EXCEPTIONS = {
+  "TransferenciasCorrientesEnCumplimientoDeConveniosSuscritosConLaComunidadAutonomaEnMateriaDeServiciosSocialesY" => "TransferenciasCorrientesEnCumplimientoDeConveniosSuscritosConLaComunidadAutonomaEnMateriaDeServiciosSocialesYPoliticasDeIgualdad"
+}
 
 def budget_line_code_to_i(budget_line_code_s)
   return budget_line_code_s.to_i
@@ -58,20 +86,12 @@ def get_budget_line_area(budget_line_key)
 end
 
 # ------------------------------------------------------------------------------
-# Replacements hash
-# ------------------------------------------------------------------------------
-
-EXCEPTIONS = {
-  "TransferenciasCorrientesEnCumplimientoDeConveniosSuscritosConLaComunidadAutonomaEnMateriaDeServiciosSocialesY" => "TransferenciasCorrientesEnCumplimientoDeConveniosSuscritosConLaComunidadAutonomaEnMateriaDeServiciosSocialesYPoliticasDeIgualdad"
-}
-
-# ------------------------------------------------------------------------------
 # Start script
 # ------------------------------------------------------------------------------
 
 puts "[START]"
 
-file = File.open("script/xblr/AJ-TrimLoc-2016.xbrl") { |f| Nokogiri::XML(f) }
+file = File.open(File.join(Rails.root, xblr_file_path)) { |f| Nokogiri::XML(f) }
 
 # ------------------------------------------------------------------------------
 # Obtain all budget lines IDs as they appear in the XBLR file
@@ -121,7 +141,15 @@ def build_elastic_to_xblr_dictionary(elastic_budget_lines, xblr_budget_lines_ids
 
   elastic_budget_lines.each do |elastic_bl_code, elastic_bl_info|
 
-    elastic_to_xblr_dictionary.store(elastic_bl_code, { bl_name_in_elastic: elastic_bl_info[:name], match: false })
+    elastic_parent_bl_codes_s = get_parent_budget_lines_codes_s(elastic_bl_code)
+
+    elastic_to_xblr_dictionary[elastic_bl_code] = {
+      name: elastic_bl_info[:name],
+      parent_code: (elastic_parent_bl_codes_s.last ? elastic_parent_bl_codes_s.last : nil),
+      parents_codes: elastic_parent_bl_codes_s,
+      level: elastic_parent_bl_codes_s.size + 1,
+      match: false
+    }
 
     # Look for exact matches on XBLR file
     # --------------------------------------------------------------------------
@@ -163,8 +191,6 @@ def build_elastic_to_xblr_dictionary(elastic_budget_lines, xblr_budget_lines_ids
     # --------------------------------------------------------------------------
 
     # Generate filter regex by looking at parent budget lines
-
-    elastic_parent_bl_codes_s = get_parent_budget_lines_codes_s(elastic_bl_code)
 
     if elastic_parent_bl_codes_s.any?
       parent_bl_id_suffixes = ""
@@ -272,12 +298,14 @@ expense_economic_area_elastic_to_xblr_dictionary = build_elastic_to_xblr_diction
 # Write results to JSON file
 # ------------------------------------------------------------------------------
 
-File.open("script/xblr/income_economic_area_budget_lines.json","w") do |f|
-  f.write JSON.pretty_generate(income_economic_area_elastic_to_xblr_dictionary)
-end
+if DEBUG_MODE
+  File.open(File.join(__dir__, "income_economic_area_budget_lines.json"),"w") do |f|
+    f.write JSON.pretty_generate(income_economic_area_elastic_to_xblr_dictionary)
+  end
 
-File.open("script/xblr/expense_economic_area_budget_lines.json","w") do |f|
-  f.write JSON.pretty_generate(expense_economic_area_elastic_to_xblr_dictionary)
+  File.open(File.join(__dir__, "expense_economic_area_budget_lines.json"),"w") do |f|
+    f.write JSON.pretty_generate(expense_economic_area_elastic_to_xblr_dictionary)
+  end
 end
 
 # ------------------------------------------------------------------------------
@@ -293,26 +321,40 @@ xblr_to_elasticsearch_dictionary = {
 
 # Insertamos todas las claves del XBLR, con valor a false
 
-xblr_budget_lines_ids.each_key do |budget_line_id|
-  xblr_to_elasticsearch_dictionary['dictionary'].store(budget_line_id, 'NOT-FOUND')
+xblr_budget_lines_ids.each_key do |xblr_id|
+  xblr_to_elasticsearch_dictionary['dictionary'].store(xblr_id, 'NOT-FOUND')
 end
 
 income_economic_area_elastic_to_xblr_dictionary.each do |key, value|
   xblr_id = value[:xblr_id] || value[:guessed_match]
   if xblr_id
-    xblr_to_elasticsearch_dictionary['dictionary'].store(xblr_id, { 'code' => key, 'kind' => 'I', 'area' => 'economic' })
+    xblr_to_elasticsearch_dictionary['dictionary'][xblr_id] = {
+      'kind' => 'I',
+      'area' => 'economic',
+      'name' => value[:name],
+      'code' => key,
+      'parent_code' => value[:parent_code],
+      'level' => value[:level]
+    }
   end
 end
 
 expense_economic_area_elastic_to_xblr_dictionary.each do |key, value|
   xblr_id = value[:xblr_id] || value[:guessed_match]
   if xblr_id
-    xblr_to_elasticsearch_dictionary['dictionary'].store(xblr_id, { 'code' => key, 'kind' => 'E', 'area' => 'economic' })
+    xblr_to_elasticsearch_dictionary['dictionary'][xblr_id] = {
+      'kind' => 'E',
+      'area' => 'economic',
+      'name' => value[:name],
+      'code' => key,
+      'parent_code' => value[:parent_code],
+      'level' => value[:level]
+    }
   end
 end
 
-File.open("script/xblr/xblr_ids_to_elasticsearch_dictionary.yml","w") do |file|
+File.open(File.join(__dir__, "xblr_dictionary.yml"),"w") do |file|
    file.write xblr_to_elasticsearch_dictionary.to_yaml
 end
 
-puts "[END]"
+puts "[DONE]"
