@@ -1,6 +1,6 @@
 # Insert budget line categories in elasticsearch
 
-# rails runner script/xblr/load_budget_lines_categories.rb script/xblr/categories.yml
+# rails runner script/xbrl/load_budget_lines_categories.rb script/xbrl/categories.yml
 
 # ------------------------------------------------------------------------------
 # Utility constants and functions

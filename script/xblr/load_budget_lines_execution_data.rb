@@ -2,9 +2,9 @@ require 'ine/places'
 
 # Insert budget line execution data in elasticsearch
 #
-# rails runner script/xblr/load_budget_lines_execution_data.rb <ine_code> <year> <budget_execution_data>
-# rails runner script/xblr/load_budget_lines_execution_data.rb 8077 2016 script/xblr/budget_execution.yml  // Esplugues
-# rails runner script/xblr/load_budget_lines_execution_data.rb 28079 2016 script/xblr/budget_execution.yml // Madrid
+# rails runner script/xbrl/load_budget_lines_execution_data.rb <ine_code> <year> <budget_execution_data>
+# rails runner script/xbrl/load_budget_lines_execution_data.rb 8077 2016 script/xbrl/budget_execution.yml  // Esplugues
+# rails runner script/xbrl/load_budget_lines_execution_data.rb 28079 2016 script/xbrl/budget_execution.yml // Madrid
 
 if ARGV.empty? || ARGV.include?('-h') || ARGV.include?('--help')
   puts "\n------------ HELP ------------"
@@ -12,9 +12,9 @@ if ARGV.empty? || ARGV.include?('-h') || ARGV.include?('--help')
   puts "      Options:"
   puts "        -h or --help       # show this help/usage"
   puts "      Format:"
-  puts "        rails runner script/xblr/load_budget_lines_execution_data.rb <ine_code> <year> <budgets_execution.yml>"
+  puts "        rails runner script/xbrl/load_budget_lines_execution_data.rb <ine_code> <year> <budgets_execution.yml>"
   puts "      Example:"
-  puts "        rails runner script/xblr/load_budget_lines_execution_data.rb 28079 2016 script/xblr/data/budget_execution.yml"
+  puts "        rails runner script/xbrl/load_budget_lines_execution_data.rb 28079 2016 script/xbrl/data/budget_execution.yml"
   puts "------------------------------\n"
   exit
 end
@@ -61,7 +61,7 @@ budget_execution = YAML.load_file(budget_execution_file_path)
 total_indexed_records = 0
 total_created_records = 0
 
-budget_execution.each do |xblr_id, budget_line_data|
+budget_execution.each do |xbrl_id, budget_line_data|
 
   budget_line_execution_data = budget_line_data['execution_data']
 

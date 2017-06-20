@@ -1,4 +1,4 @@
-# rails runner script/xblr/create_budget_lines_categories_fixtures.rb script/xblr/xblr_dictionary.yml
+# rails runner script/xbrl/create_budget_lines_categories_fixtures.rb script/xbrl/xbrl_dictionary.yml
 
 # ------------------------------------------------------------------------------
 # Utility functions
@@ -16,17 +16,17 @@ end
 # Start script
 # ------------------------------------------------------------------------------
 
-xblr_dictionary_path = ARGV[0]
+xbrl_dictionary_path = ARGV[0]
 
 puts '[START]'
 
-puts 'Opening XBLR dictionary...'
+puts 'Opening xbrl dictionary...'
 
-xblr_dictionary = YAML.load_file(File.join(Rails.root, xblr_dictionary_path))
+xbrl_dictionary = YAML.load_file(File.join(Rails.root, xbrl_dictionary_path))
 
 budget_lines_categories = {}
 
-xblr_dictionary['dictionary'].each do |xblr_id, budget_line_data|
+xbrl_dictionary['dictionary'].each do |xbrl_id, budget_line_data|
   kind = (budget_line_data['kind'] == 'I') ? 'income' : 'expense'
   parent_code = budget_line_data['parent_code']
 

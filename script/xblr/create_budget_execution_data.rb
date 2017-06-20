@@ -1,4 +1,4 @@
-# rails runner script/xblr/create_budget_execution_data.rb script/xblr/xblr_dictionary.yml script/xblr/xblr_file.xblr
+# rails runner script/xbrl/create_budget_execution_data.rb script/xbrl/xbrl_dictionary.yml script/xbrl/xbrl_file.xbrl
 
 # ------------------------------------------------------------------------------
 # Utility constants and functions
@@ -21,26 +21,26 @@ end
 
 puts '[START]'
 
-xblr_dictionary_path = File.join(Rails.root, ARGV[0])
-xblr_file_path       = File.join(Rails.root, ARGV[1])
+xbrl_dictionary_path = File.join(Rails.root, ARGV[0])
+xbrl_file_path       = File.join(Rails.root, ARGV[1])
 
-puts 'Opening XBLR dictionary and XBLR file...'
+puts 'Opening xbrl dictionary and xbrl file...'
 
-xblr_dictionary = YAML.load_file(xblr_dictionary_path)
-xblr_file       = File.open(xblr_file_path) { |f| Nokogiri::XML(f) }
+xbrl_dictionary = YAML.load_file(xbrl_dictionary_path)
+xbrl_file       = File.open(xbrl_file_path) { |f| Nokogiri::XML(f) }
 
 puts 'Creating budget execution data...'
 
 budget_execution_data = {}
 
-# Seleccionar todos los nodos de ejecución del XBLR
+# Seleccionar todos los nodos de ejecución del xbrl
 counter = 0
-xblr_budget_line_ids = xblr_file.xpath('//@contextRef').map{ |xml_node| xml_node.value }.select{ |budget_line_id| budget_line_id[/^IdContextos.*/] }.uniq
+xbrl_budget_line_ids = xbrl_file.xpath('//@contextRef').map{ |xml_node| xml_node.value }.select{ |budget_line_id| budget_line_id[/^IdContextos.*/] }.uniq
 
 
-xblr_budget_line_ids.each do |budget_line_id|
+xbrl_budget_line_ids.each do |budget_line_id|
 
-  bl_execution_data = xblr_file.xpath("//*[@contextRef='#{budget_line_id}']").map do |execution_node|
+  bl_execution_data = xbrl_file.xpath("//*[@contextRef='#{budget_line_id}']").map do |execution_node|
     { phase: execution_node.name, value: execution_node.child.content.to_f }
   end
 
@@ -50,16 +50,16 @@ xblr_budget_line_ids.each do |budget_line_id|
   execution_data_available = bl_execution_data_values.any? { |value| value > 0 }
 
   if execution_data_available
-    xblr_dictionary_data = xblr_dictionary['dictionary'][budget_line_id]
+    xbrl_dictionary_data = xbrl_dictionary['dictionary'][budget_line_id]
 
-    if xblr_dictionary_data != 'NOT-FOUND'
+    if xbrl_dictionary_data != 'NOT-FOUND'
       budget_execution_data[budget_line_id] = {
-        'kind'           => xblr_dictionary_data['kind'],
-        'area'           => xblr_dictionary_data['area'],
-        'name'           => xblr_dictionary_data['name'],
-        'code'           => xblr_dictionary_data['code'],
-        'parent_code'    => xblr_dictionary_data['parent_code'],
-        'level'          => xblr_dictionary_data['level'],
+        'kind'           => xbrl_dictionary_data['kind'],
+        'area'           => xbrl_dictionary_data['area'],
+        'name'           => xbrl_dictionary_data['name'],
+        'code'           => xbrl_dictionary_data['code'],
+        'parent_code'    => xbrl_dictionary_data['parent_code'],
+        'level'          => xbrl_dictionary_data['level'],
         'execution_data' => format_bl_execution_data(bl_execution_data)
       }
     end
