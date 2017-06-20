@@ -27,6 +27,8 @@ xbrl_dictionary = YAML.load_file(File.join(Rails.root, xbrl_dictionary_path))
 budget_lines_categories = {}
 
 xbrl_dictionary['dictionary'].each do |xbrl_id, budget_line_data|
+  next if budget_line_data == 'NOT-FOUND'
+  
   kind = (budget_line_data['kind'] == 'I') ? 'income' : 'expense'
   parent_code = budget_line_data['parent_code']
 
