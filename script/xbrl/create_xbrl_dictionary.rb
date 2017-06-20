@@ -55,7 +55,6 @@ def get_parent_budget_lines_codes_s(budget_line_code_s)
     parent_budget_line_codes << first_budget_line_code_segment_s
   end
 
-  parent_budget_line_codes.delete("8") # ==> TODO: ñapa
   parent_budget_line_codes
 end
 
